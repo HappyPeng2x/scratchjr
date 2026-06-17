@@ -1,4 +1,16 @@
 ## Overview
+
+> **This is an experimental fork of ScratchJr.** Its goal is to make the app
+> run on modern Android devices and development environments. It is not
+> affiliated with the official ScratchJr project. For the original, see
+> [LLK/scratchjr](https://github.com/LLK/scratchjr).
+>
+> Key changes from upstream:
+> - Updated build toolchain: Gradle 8.7, Android Gradle Plugin 8.5, compile/target SDK 35
+> - Firebase Analytics is optional (disabled by default — no `google-services.json` required to build)
+> - Build scripts updated for Node.js 20 and Python 3
+> - Android manifest updated for modern Android (API 33+ permission scoping, required `exported` attributes)
+
 This is the official git repository hosting the source code for the
 [ScratchJr](http://scratchjr.org/) project.
 
@@ -36,42 +48,57 @@ This repository has the following directory structure:
 
 Regardless of whether you are doing iOS development or Android development, you should do these steps.
 
-*These instructions assume you are building both versions on Mac OSX, with [Homebrew](http://brew.sh) installed.*
-
 1. Clone or update the code for this repo
-2. Ensure you have node and npm [installed](https://www.npmjs.com/get-npm).
-3. Run <tt>sudo easy_install pysvg</tt> to install python svg libraries
-4. Run <tt>brew install librsvg</tt> to install commandline `rsvg-convert`
-5. Run <tt>brew install imagemagick</tt> to install commandline `magick`
-6. In the top level of the scratchjr repo directory, install npm dependencies for bundling the JavaScript: <tt>npm install</tt>
+2. Ensure you have Node.js 18+ and npm [installed](https://www.npmjs.com/get-npm)
+3. In the top level of the scratchjr repo directory, install npm dependencies: <tt>npm install</tt>
+
+**macOS (Homebrew):**
+```
+brew install librsvg imagemagick
+pip3 install pysvg-py3
+```
+
+**Ubuntu/Debian:**
+```
+sudo apt-get install librsvg2-bin imagemagick
+pip3 install pysvg-py3
+```
+
+`librsvg` and `imagemagick` are used to generate PNG thumbnails from SVG assets during the build.
+If `rsvg-convert` is not available, the build script will fall back to ImageMagick automatically.
 
 ### Analytics
-ScratchJr uses the Firebase SDK to record analytics for the app. Scratch Team developers should look for
-the configuration files in the Scratch Devs Vault. If you're not on the Scratch Team, then you'll need to
-set up your own [app analytics](https://firebase.google.com/products/analytics) with Google Firebase. It's free. Firebase will generate the configuration files for you to download.
 
-1. Place the `google-services.json` file in `editions/free/android-resources`
-2. Place the `GoogleService-Info.plist` file in `editions/free/ios-resources`
+Firebase Analytics is **disabled by default** in this fork — no configuration files are needed to build.
+
+To enable it, set `firebase.enabled=true` in `android/ScratchJr/gradle.properties`, then:
+
+1. Set up a [Firebase project](https://firebase.google.com/products/analytics) and download the config files
+2. Place `google-services.json` in `editions/free/android-resources/`
+3. Place `GoogleService-Info.plist` in `editions/free/ios-resources/`
 
 ### iOS
 
-1. To build the iOS version, you need to have a Mac with Xcode
+1. To build the iOS version, you need a Mac with Xcode
 2. Run <tt>brew install cocoapods</tt> to install CocoaPods
-3. Run <tt>pod install</tt> to install the Firebase Analytics dependencies
-4. Open Xcode
-5. In Xcode, open <tt>ios/ScratchJr.xcworkspace</tt>
+3. Run <tt>pod install</tt> to install dependencies
+4. Open Xcode and open <tt>ios/ScratchJr.xcworkspace</tt>
 
 ### Android
 
-1. Install or update Android Studio
-2. In Android Studio, open the project <tt>android/ScratchJr</tt>
-3. Choose the appropriate flavor/build variant in Android Studio
+Requirements: Android Studio with Android SDK 35, JDK 21.
 
-*Note: you can still do Android development on Ubuntu. Instead of the install commands above, run:*
+1. In the top level of the repo, run <tt>npm install</tt>
+2. Open Android Studio and open the project <tt>android/ScratchJr</tt>
+3. Sync with Gradle (**File → Sync Project with Gradle Files**)
+4. Select the `free` flavor and run the `app` configuration
 
-1. <tt>sudo easy_install pysvg</tt> to install python svg libraries
-2. <tt>sudo apt-get install librsvg2-bin</tt> to install rsvg-convert
-3. <tt>sudo apt-get install imagemagick</tt> to install ImageMagick
+To build and install from the command line:
+```
+cd android/ScratchJr
+./gradlew installFreeDebug
+adb shell am start -n org.scratchjr.androidfree/org.scratchjr.android.ScratchJrActivity
+```
 
 ## Where and how to make changes
 
