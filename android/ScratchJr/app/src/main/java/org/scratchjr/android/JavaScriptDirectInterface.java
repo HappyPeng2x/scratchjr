@@ -16,12 +16,14 @@ import org.json.JSONObject;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.RectF;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.text.Html;
+import android.text.Spanned;
 import android.util.Base64;
 import android.util.Log;
 import android.view.inputmethod.InputMethodManager;
@@ -656,7 +658,14 @@ public class JavaScriptDirectInterface {
         it.setType(mimetype);
         it.putExtra(android.content.Intent.EXTRA_EMAIL, new String[] {});
         it.putExtra(android.content.Intent.EXTRA_SUBJECT, fileName);
-        it.putExtra(android.content.Intent.EXTRA_TEXT, Html.fromHtml(emailBody));
+        Spanned htmlContent;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            htmlContent = Html.fromHtml(emailBody, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            //noinspection deprecation
+            htmlContent = Html.fromHtml(emailBody);
+        }
+        it.putExtra(android.content.Intent.EXTRA_TEXT, htmlContent);
 
         // The stream data is a reference to the temporary file provided by our contentprovider
         it.putExtra(Intent.EXTRA_STREAM,

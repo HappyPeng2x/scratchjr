@@ -20,20 +20,19 @@ import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.View.OnSystemUiVisibilityChangeListener;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.view.Window;
-import android.view.WindowManager;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
-import android.webkit.CookieSyncManager;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.RelativeLayout;
-
-import com.google.firebase.analytics.FirebaseAnalytics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -103,8 +102,7 @@ public class ScratchJrActivity
     public int micPermissionResult = PackageManager.PERMISSION_DENIED;
     public int readExtPermissionResult = PackageManager.PERMISSION_DENIED;
 
-    /* Firebase analytics tracking */
-    private FirebaseAnalytics _FirebaseAnalytics;
+    private AnalyticsTracker _analytics;
 
     /**
      * Project uri that need to be imported.
@@ -126,13 +124,7 @@ public class ScratchJrActivity
         _webView = (WebView) findViewById(R.id.webview);
         _webView.setBackgroundColor(0x00000000);
         _webView.clearCache(true);
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-            Log.i(LOG_TAG, "Setting non-immersive full screen");
-            getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        } else {
-            setImmersiveMode();
-        }
+        setImmersiveMode();
         configureWebView();
         registerSoftKeyboardPanner();
         /* URL to load once ready */
@@ -149,30 +141,29 @@ public class ScratchJrActivity
         _webView.loadUrl(urlToLoad);
 
         CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.setAcceptFileSchemeCookies(true);
 
         Intent it = getIntent();
         if (it != null && it.getData() != null) {
             receiveProject(it.getData());
         }
 
-        _FirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+        _analytics = new AnalyticsTracker(this);
 
-        // When System UI bar is displayed, wait one second and then re-assert immersive mode.
-        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new OnSystemUiVisibilityChangeListener() {
-            @Override
-            public void onSystemUiVisibilityChange(int visibility) {
-                _handler.postDelayed(new Runnable() {
-                    public void run() {
-                        runOnUiThread(new Runnable() {
-                            public void run() {
-                                setImmersiveMode();
-                            }
-                        });
-                    }
-                }, 1000);
-            }
-        });
+        // When system bars become visible, wait one second and re-assert immersive mode.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().getDecorView().setOnApplyWindowInsetsListener((view, windowInsets) -> {
+                if (windowInsets.isVisible(WindowInsets.Type.statusBars())
+                        || windowInsets.isVisible(WindowInsets.Type.navigationBars())) {
+                    _handler.postDelayed(() -> runOnUiThread(this::setImmersiveMode), 1000);
+                }
+                return view.onApplyWindowInsets(windowInsets);
+            });
+        } else {
+            //noinspection deprecation
+            getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
+                _handler.postDelayed(() -> runOnUiThread(this::setImmersiveMode), 1000);
+            });
+        }
         requestPermissions();
     }
 
@@ -182,7 +173,12 @@ public class ScratchJrActivity
     public void requestPermissions() {
         cameraPermissionResult = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         micPermissionResult = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO);
-        readExtPermissionResult = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
+        // READ_EXTERNAL_STORAGE was removed in Android 13 (API 33); content URI access doesn't need it
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            readExtPermissionResult = PackageManager.PERMISSION_GRANTED;
+        } else {
+            readExtPermissionResult = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
 
         if (cameraPermissionResult == PackageManager.PERMISSION_GRANTED
             && micPermissionResult == PackageManager.PERMISSION_GRANTED
@@ -210,7 +206,8 @@ public class ScratchJrActivity
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
+                                           @NonNull String permissions[], @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == SCRATCHJR_CAMERA_MIC_PERMISSION) {
             int permissionId = 0;
             for (String permission : permissions) {
@@ -231,7 +228,7 @@ public class ScratchJrActivity
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && hasFocus) {
+        if (hasFocus) {
             setImmersiveMode();
         }
     }
@@ -275,7 +272,6 @@ public class ScratchJrActivity
             @Override
             public void run() {
                 _webView.onResume();
-                CookieSyncManager.getInstance().startSync();
             }
         });
         runJavaScript("if (typeof(ScratchJr) !== 'undefined') ScratchJr.onResume();");
@@ -289,7 +285,7 @@ public class ScratchJrActivity
             @Override
             public void run() {
                 _webView.onPause();
-                CookieSyncManager.getInstance().stopSync();
+                CookieManager.getInstance().flush();
             }
         });
         _databaseManager.close();
@@ -366,21 +362,22 @@ public class ScratchJrActivity
     }
 
     private void setImmersiveMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            Log.i(LOG_TAG, "Setting immersive mode");
-            int immersiveStickyFlag = 0;
-            try {
-                immersiveStickyFlag = View.class.getField("SYSTEM_UI_FLAG_IMMERSIVE_STICKY").getInt(null);
-            } catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException e) {
-                Log.e(LOG_TAG, "Reflection fail", e);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+        } else {
+            //noinspection deprecation
             _webView.setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                   | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                   | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                   | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                   | View.SYSTEM_UI_FLAG_FULLSCREEN
-                  | immersiveStickyFlag);
+                  | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
     }
 
@@ -397,48 +394,44 @@ public class ScratchJrActivity
         }
 
         // Enable cookie persistence
-        CookieManager.setAcceptFileSchemeCookies(true);
         CookieManager cookieManager = CookieManager.getInstance();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            cookieManager.setAcceptThirdPartyCookies(_webView, true);
-        } else {
-            cookieManager.setAcceptCookie(true);
-        }
-        CookieSyncManager.createInstance(this);
+        cookieManager.setAcceptThirdPartyCookies(_webView, true);
 
         /* Object exposed to the JavaScript that makes it easy to bridge JavaScript and Java */
         JavaScriptDirectInterface javaScriptDirectInterface = new JavaScriptDirectInterface(this);
         _webView.addJavascriptInterface(javaScriptDirectInterface, "AndroidInterface");
         _webView.setWebViewClient(new WebViewClient() {
             @Override
+            @SuppressWarnings("deprecation")
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 Log.e(LOG_TAG, description);
             }
 
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                // Filter out Internet links and open those with the Android browser
-                if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
-                    view.getContext().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    view.getContext().startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl()));
                     return true;
                 }
-                return false; // Allow WebView to load url
+                return false;
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
-                // Sync cookies
-                CookieSyncManager.getInstance().sync();
+                CookieManager.getInstance().flush();
 
                 // Track page load
                 String[] parts = url.split("/");
                 String page = parts[parts.length - 1].split("\\?")[0];
-                _FirebaseAnalytics.setCurrentScreen((Activity) view.getContext(), page, null);
+                _analytics.logScreenView(page);
             }
         });
         _webView.requestFocus(View.FOCUS_DOWN);
         webSettings.setAllowFileAccess(true);
+        //noinspection deprecation
         webSettings.setAllowFileAccessFromFileURLs(true);
+        //noinspection deprecation
         webSettings.setAllowUniversalAccessFromFileURLs(true);
         webSettings.setAllowContentAccess(true);
 
@@ -508,34 +501,16 @@ public class ScratchJrActivity
         });
     }
 
-    /**
-     * log a Firebase analytics event for the app
-     * @param category
-     * @param action
-     * @param label
-     */
     public void logAnalyticsEvent(String category, String action, String label) {
-        Bundle params = new Bundle();
-        params.putString(FirebaseAnalytics.Param.ITEM_CATEGORY, category);
-        params.putString(FirebaseAnalytics.Param.ITEM_NAME, label);
-        _FirebaseAnalytics.logEvent(action, params);
+        _analytics.logEvent(category, action, label);
     }
 
-    /**
-     * Record the preferred place for the user: home, school, other, noanswer
-     * @param place
-     */
     public void setAnalyticsPlacePref(String place) {
-        _FirebaseAnalytics.setUserProperty("place_preference", place);
+        _analytics.setUserProperty("place_preference", place);
     }
 
-    /**
-     * Record a user property
-     * @param key like "school"
-     * @param value like "Central High"
-     */
     public void setAnalyticsPref(String key, String value) {
-        _FirebaseAnalytics.setUserProperty(key, value);
+        _analytics.setUserProperty(key, value);
     }
 
     public void translateAndScaleRectToContainerCoords(RectF rect, float devicePixelRatio) {

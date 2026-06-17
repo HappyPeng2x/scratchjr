@@ -15,6 +15,7 @@ import java.util.Set;
 
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.SoundPool;
@@ -248,7 +249,14 @@ public class SoundManager {
 
     private void loadSoundEffects() {
         if (_soundEffectPool == null) {
-            _soundEffectPool = new SoundPool(11, AudioManager.STREAM_MUSIC, 0);
+            AudioAttributes audioAttributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+            _soundEffectPool = new SoundPool.Builder()
+                .setMaxStreams(11)
+                .setAudioAttributes(audioAttributes)
+                .build();
 
             // Load all sound effects into memory
             AssetManager assetManager = _application.getAssets();

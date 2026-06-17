@@ -24,3 +24,7 @@
 # Gradle:
 .idea/gradle.xml
 .idea/libraries
+
+# IDE-generated, user/machine-specific:
+.idea/deploymentTargetSelector.xml
+.idea/migrations.xml

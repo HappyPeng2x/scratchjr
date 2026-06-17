@@ -26,6 +26,7 @@
 
 .idea/caches/*
 .idea/modules.xml
+.idea/markdown.xml
 /android/ScratchJr/.idea/caches
 /android/ScratchJr/.idea/modules.xml
 ios/Pods
