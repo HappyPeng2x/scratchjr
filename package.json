@@ -4,9 +4,10 @@
   "description": "ScratchJr",
   "scripts": {
     "lint": "eslint src/**",
-    "watch": "webpack --mode=development --progress --hide-modules --watch",
-    "dev": "webpack --mode=development --progress --hide-modules",
-    "build": "webpack --mode=production --progress --hide-modules"
+    "watch": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=development --progress --hide-modules --watch",
+    "dev": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=development --progress --hide-modules",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=production --progress --hide-modules",
+    "electron": "cd electron && npm install && npm start"
   },
   "author": "Massachusetts Institute of Technology",
   "license": "BSD-3-Clause",

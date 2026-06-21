@@ -40,6 +40,7 @@ This repository has the following directory structure:
   * <tt>ScratchJr/</tt> - Android Studio Project for ScratchJr Android Application
 * <tt>bin/</tt> - Build scripts and other executables
 * <tt>doc/</tt> - Developer Documentation
+* <tt>electron/</tt> - Desktop build using Electron (Linux, macOS, Windows). Run <tt>npm start</tt> from this directory.
 * <tt>ios/</tt> - Xcode project for iOS build. (Make sure to open <tt>ScratchJr.xcworkspace</tt> not <tt>ScratchJr.xcodeproj</tt>)
 
 ## Building ScratchJr
@@ -83,6 +84,22 @@ To enable it, set `firebase.enabled=true` in `android/ScratchJr/gradle.propertie
 2. Run <tt>brew install cocoapods</tt> to install CocoaPods
 3. Run <tt>pod install</tt> to install dependencies
 4. Open Xcode and open <tt>ios/ScratchJr.xcworkspace</tt>
+
+### Desktop (Electron)
+
+Runs on Linux, macOS, and Windows without any mobile device or emulator.
+
+```sh
+cd electron
+npm install
+npm start          # launch in dev mode (DevTools open)
+npm run make       # build a distributable (.deb on Linux, .zip on macOS, Squirrel on Windows)
+```
+
+Or from the repo root:
+```sh
+npm run electron
+```
 
 ### Android
 

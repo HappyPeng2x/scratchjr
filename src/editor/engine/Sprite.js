@@ -125,6 +125,9 @@ export default class Sprite {
             img.onload = function () {
                 sprite.displaySprite(fcn);
             };
+            img.onerror = function () {
+                sprite.displaySprite(fcn);
+            };
         } else {
             sprite.displaySprite(fcn);
         }

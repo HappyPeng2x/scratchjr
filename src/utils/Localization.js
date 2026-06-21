@@ -1,6 +1,11 @@
-import Cookie from './Cookie';
 import Intl from 'intl';
+import IntlMessageFormat from 'intl-messageformat';
+import Cookie from './Cookie';
 import IO from '../tablet/IO';
+
+// Make IntlMessageFormat available globally so locale data files can register
+// themselves against it (they call IntlMessageFormat.__addLocaleData).
+global.IntlMessageFormat = IntlMessageFormat;
 
 if (!window.Intl) {
     window.Intl = Intl;
@@ -19,7 +24,6 @@ require('intl/locale-data/jsonp/sv.js');
 require('intl/locale-data/jsonp/th.js');
 require('intl/locale-data/jsonp/zh.js');
 
-require('expose-loader?IntlMessageFormat!intl-messageformat');
 require('intl-messageformat/dist/locale-data/ca');
 require('intl-messageformat/dist/locale-data/de');
 require('intl-messageformat/dist/locale-data/en');

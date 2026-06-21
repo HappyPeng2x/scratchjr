@@ -125,6 +125,10 @@ export default class BlockSpecs {
                 delete loadassets[img.src];
                 loadCount--;
             };
+            img.onerror = function () {
+                delete loadassets[img.src];
+                loadCount--;
+            };
         }
         return img;
     }

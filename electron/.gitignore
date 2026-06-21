@@ -1,0 +1,19 @@
+# Generated assets (copied from editions/free/src/ during build)
+src/app/css/
+src/app/assets/
+src/app/svglibrary/
+src/app/sounds/
+src/app/localizations/
+src/app/inapp/
+src/app/samples/
+src/app/media.json
+src/app/settings.json
+src/app/pop.mp3
+
+# Generated JS bundle
+src/app/appEntry.bundle.js
+src/app/appEntry.bundle.js.map
+
+# Build output
+out/
+node_modules/

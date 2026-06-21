@@ -9,7 +9,7 @@ import Scroll from './Scroll';
 import Menu from '../blocks/Menu';
 import ScratchAudio from '../../utils/ScratchAudio';
 import {gn, localx, localy, newHTML, isTablet,
-    globalx, globaly, setCanvasSize, getDocumentHeight, frame} from '../../utils/lib';
+    globalx, globaly, getDocumentHeight, frame} from '../../utils/lib';
 
 let scroll = undefined;
 let watermark;
@@ -28,9 +28,15 @@ export default class ScriptsPane {
         div.setAttribute('id', 'scripts');
         watermark = newHTML('div', 'watermark', div);
         var h = Math.max(getDocumentHeight(), frame.offsetHeight);
-        setCanvasSize(div, div.offsetWidth, h - div.offsetTop);
-        scroll = new Scroll(div, 'scriptscontainer', div.offsetWidth,
+        div.style.height = (h - div.offsetTop) + 'px';
+        scroll = new Scroll(div, 'scriptscontainer', 0,
             h - div.offsetTop, ScratchJr.getActiveScript, ScratchJr.getBlocks);
+        // Let both elements grow with the window via CSS left:0/right:0 stretch
+        scroll.contents.style.right = '0px';
+        // Update scroll arrows whenever the window is resized
+        window.addEventListener('resize', function () {
+            scroll.update();
+        });
     }
 
     static setActiveScript (sprname) {
