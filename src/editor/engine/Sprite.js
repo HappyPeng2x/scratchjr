@@ -162,8 +162,8 @@ export default class Sprite {
         var w, h, extxml;
         if (isAndroid) {
             this.border = document.createElement('canvas');
-            w = this.originalImg.width;
-            h = this.originalImg.height;
+            w = this.w;
+            h = this.h;
             extxml = this.svg;
             this.border.width = w;
             this.border.height = h;
@@ -222,13 +222,7 @@ export default class Sprite {
         }
         setCanvasSize(cnv, w, h);
 
-        // TODO: Merge these to get better thumbnail rendering on iOS
-        var img;
-        if (isAndroid) {
-            img = this.originalImg;
-        } else {
-            img = this.img;
-        }
+        var img = this.img;
         var imgw = img.naturalWidth ? img.naturalWidth : img.width;
         var imgh = img.naturalHeight ? img.naturalHeight : img.height;
         var scale = Math.min(w / imgw, h / imgh);
@@ -422,8 +416,8 @@ export default class Sprite {
                 } else {
                     mtx += ' scale(1, 1)';
                 }
-                var w = (this.originalImg.width * this.scale);
-                var h = (this.originalImg.height * this.scale);
+                var w = (this.w * this.scale);
+                var h = (this.h * this.scale);
                 this.div.style.width = w + 'px';
                 this.div.style.height = h + 'px';
                 if (this.border) {
