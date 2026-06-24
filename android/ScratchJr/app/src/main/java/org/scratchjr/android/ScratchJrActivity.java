@@ -20,6 +20,8 @@ import androidx.core.content.ContextCompat;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -113,6 +115,7 @@ public class ScratchJrActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         _databaseManager = new DatabaseManager(this);
         _ioManager = new IOManager(this);
@@ -153,7 +156,8 @@ public class ScratchJrActivity
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             getWindow().getDecorView().setOnApplyWindowInsetsListener((view, windowInsets) -> {
                 if (windowInsets.isVisible(WindowInsets.Type.statusBars())
-                        || windowInsets.isVisible(WindowInsets.Type.navigationBars())) {
+                        || windowInsets.isVisible(WindowInsets.Type.navigationBars())
+                        || windowInsets.isVisible(WindowInsets.Type.captionBar())) {
                     _handler.postDelayed(() -> runOnUiThread(this::setImmersiveMode), 1000);
                 }
                 return view.onApplyWindowInsets(windowInsets);
@@ -366,9 +370,15 @@ public class ScratchJrActivity
             getWindow().setDecorFitsSystemWindows(false);
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars() | WindowInsets.Type.captionBar());
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+            // API 35+: requestFullscreenMode() is the dedicated API for suppressing the desktop
+            // windowing caption bar; hide(captionBar()) alone was unreliable in Android 14.
+            if (Build.VERSION.SDK_INT >= 35) {
+                requestFullscreenMode(FULLSCREEN_MODE_REQUEST_ENTER, null);
+            }
+            hideCaptionBarView();
         } else {
             //noinspection deprecation
             _webView.setSystemUiVisibility(
@@ -379,6 +389,22 @@ public class ScratchJrActivity
                   | View.SYSTEM_UI_FLAG_FULLSCREEN
                   | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
         }
+    }
+
+    // On API 34 desktop windowing, WindowInsetsController.hide(captionBar()) is a no-op because
+    // proper support was only wired up in Android 15. The caption bar is implemented as
+    // DecorCaptionView inside the app's own DecorView, so we can find and hide it directly.
+    private void hideCaptionBarView() {
+        final View decorView = getWindow().getDecorView();
+        decorView.post(() -> {
+            int captionId = getResources().getIdentifier("caption", "id", "android");
+            if (captionId != 0) {
+                View bar = decorView.findViewById(captionId);
+                if (bar != null) {
+                    bar.setVisibility(View.GONE);
+                }
+            }
+        });
     }
 
     @SuppressLint("SetJavaScriptEnabled")

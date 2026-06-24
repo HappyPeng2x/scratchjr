@@ -17,7 +17,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
-        android:resizeableActivity="false">
+        android:resizeableActivity="true">
         <provider android:name="ShareContentProvider"
                   android:grantUriPermissions="true"
                   android:exported="false"
@@ -28,9 +28,10 @@
             android:name=".ScratchJrActivity"
             android:label="@string/app_name"
             android:windowSoftInputMode="adjustResize"
-            android:configChanges="keyboard|keyboardHidden"
+            android:configChanges="keyboard|keyboardHidden|screenSize|smallestScreenSize|screenLayout|orientation|density"
             android:theme="@style/FullscreenTheme"
             android:launchMode="singleTask"
+            android:immersive="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
