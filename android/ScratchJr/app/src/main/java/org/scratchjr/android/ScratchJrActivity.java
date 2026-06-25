@@ -31,11 +31,9 @@ import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import androidx.webkit.WebViewAssetLoader;
 import android.widget.RelativeLayout;
 
 import java.util.ArrayList;
@@ -64,8 +62,7 @@ public class ScratchJrActivity
     private static final String BUNDLE_KEY_URL = "url";
 
     /** The url of the index page */
-    private static final String INDEX_PAGE_URL = "https://appassets.androidplatform.net/assets/HTML5/index.html";
-    private WebViewAssetLoader _assetLoader;
+    private static final String INDEX_PAGE_URL = "file:///android_asset/HTML5/index.html";
 
     /** Container containing the web view */
     private RelativeLayout _container;
@@ -412,10 +409,6 @@ public class ScratchJrActivity
 
     @SuppressLint("SetJavaScriptEnabled")
     private void configureWebView() {
-        _assetLoader = new WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
-                .build();
-
         WebSettings webSettings = _webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setBuiltInZoomControls(false);
@@ -435,11 +428,6 @@ public class ScratchJrActivity
         _webView.addJavascriptInterface(javaScriptDirectInterface, "AndroidInterface");
         _webView.setWebViewClient(new WebViewClient() {
             @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return _assetLoader.shouldInterceptRequest(request.getUrl());
-            }
-
-            @Override
             @SuppressWarnings("deprecation")
             public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
                 Log.e(LOG_TAG, description);
@@ -449,9 +437,6 @@ public class ScratchJrActivity
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 if (url.startsWith("http://") || url.startsWith("https://")) {
-                    if ("appassets.androidplatform.net".equals(request.getUrl().getHost())) {
-                        return false;
-                    }
                     view.getContext().startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl()));
                     return true;
                 }
