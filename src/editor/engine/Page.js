@@ -13,7 +13,7 @@ import Matrix from '../../geom/Matrix';
 import Vector from '../../geom/Vector';
 import {newHTML, newDiv, gn,
     setCanvasSizeScaledToWindowDocumentHeight,
-    DEGTOR, getIdFor, setProps} from '../../utils/lib';
+    DEGTOR, getIdFor, setProps, isAndroid} from '../../utils/lib';
 
 export default class Page {
     constructor (id, data, fcn) {
@@ -137,7 +137,14 @@ export default class Page {
         }
 
         if (md5.indexOf('/') > -1) {
-            IO.requestFromServer(md5, doNext);
+            if (isAndroid) {
+                var assetPath = 'HTML5/' + md5.replace(/^\.\//, '');
+                setTimeout(function () {
+                    doNext(AndroidInterface.io_getasset(assetPath));
+                }, 0);
+            } else {
+                IO.requestFromServer(md5, doNext);
+            }
         } else {
             OS.getmedia(md5, nextStep);
         }

@@ -36,16 +36,6 @@ export default class IO {
     }
 
     static requestFromServer (url, whenDone) {
-        // On Android, read asset files via the native bridge to bypass
-        // WebView's XHR file-access restrictions (ignored for targetSdk >= 33).
-        if (isAndroid && url.indexOf('://') === -1) {
-            var assetPath = 'HTML5/' + url.replace(/^\.\//, '');
-            setTimeout(function () {
-                var content = AndroidInterface.io_getasset(assetPath);
-                whenDone(content);
-            }, 0);
-            return;
-        }
         var xmlrequest = new XMLHttpRequest();
         xmlrequest.addEventListener('error', function (e) {
             e.preventDefault();

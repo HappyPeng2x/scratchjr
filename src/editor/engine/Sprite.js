@@ -79,7 +79,14 @@ export default class Sprite {
         var spr = this;
         md5 = (MediaLib.keys[md5]) ? MediaLib.path + md5 : md5;
         if (md5.indexOf('/') > -1) {
-            IO.requestFromServer(md5, doNext);
+            if (isAndroid) {
+                var assetPath = 'HTML5/' + md5.replace(/^\.\//, '');
+                setTimeout(function () {
+                    doNext(AndroidInterface.io_getasset(assetPath));
+                }, 0);
+            } else {
+                IO.requestFromServer(md5, doNext);
+            }
         } else {
             OS.getmedia(md5, nextStep);
         }
