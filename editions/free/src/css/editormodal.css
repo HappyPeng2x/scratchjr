@@ -100,8 +100,8 @@
     top: 32%;
     left: 40%;
     z-index: 11000;
-    width: ${241 * scaleMultiplier}px;
-    height: ${219 * scaleMultiplier}px;
+    width: ${260 * scaleMultiplier}px;
+    height: ${265 * scaleMultiplier}px;
     margin: 1px 1px 0px;
     background-color: #f9f9f9;
     border: 1px solid #999;
@@ -109,6 +109,7 @@
     -moz-border-radius: ${6 * scaleMultiplier}px;
     border-radius: ${6 * scaleMultiplier}px;
     -webkit-box-shadow: 0 ${3 * scaleMultiplier}px ${7 * scaleMultiplier}px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
     opacity: 1;
 }
 
@@ -142,7 +143,7 @@
 
 .record	.toolbar {
     position: absoulte;
-    width: ${239 * scaleMultiplier}px;
+    width: ${260 * scaleMultiplier}px;
     height: ${66 * scaleMultiplier}px;
     overflow: hidden;
     text-shadow: none;
@@ -186,13 +187,13 @@
     left: ${20 * scaleMultiplier}px;
     top: ${20 * scaleMultiplier}px;
     width: ${239 * scaleMultiplier}px;
-    height: ${151 * scaleMultiplier}px;
+    height: ${195 * scaleMultiplier}px;
 }
 
 .soundcontrols {
     position: relative;
     display: inline-block;
-    margin: ${20 * scaleMultiplier}px ${5 * scaleMultiplier}px 0px;
+    margin: ${12 * scaleMultiplier}px ${5 * scaleMultiplier}px 0px;
     width: ${200 * scaleMultiplier}px;
     height: ${45 * scaleMultiplier}px;
 }
@@ -253,21 +254,20 @@
 .indicator {
     margin: ${scaleMultiplier}px ${scaleMultiplier}px 0px;
     padding: 0px;
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    vertical-align: bottom;
     width: ${13 * scaleMultiplier}px;
     height: ${44 * scaleMultiplier}px;
-    background-image: -webkit-linear-gradient(top, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
-    -webkit-border-radius: ${5 * scaleMultiplier}px;
-    -moz-border-radius: ${5 * scaleMultiplier}px;
-    border-radius: ${3 * scaleMultiplier}px;
 }
 
 .soundlevel {
-    margin: 1px 1px 0px;
+    margin: 0px 1px;
     padding: 0px;
-    display: inline-block;
+    display: block;
     width: ${11 * scaleMultiplier}px;
-    height: ${42 * scaleMultiplier}px;
+    /* height is set per-bar via inline style to create staircase effect */
     -webkit-border-radius: ${3 * scaleMultiplier}px;
     -moz-border-radius: ${3 * scaleMultiplier}px;
     border-radius: ${3 * scaleMultiplier}px;
@@ -276,3 +276,102 @@
 
 .soundlevel.on{ background: #8CC63F;}
 .soundlevel.off{background: #B3B3B3;}
+.soundlevel.envelope{ background: #a0a0a0; }
+
+/* Status row: pulsing dot + state label + timer */
+.recordstatus {
+    display: flex;
+    align-items: center;
+    margin: ${5 * scaleMultiplier}px ${5 * scaleMultiplier}px ${4 * scaleMultiplier}px;
+    height: ${28 * scaleMultiplier}px;
+    gap: ${6 * scaleMultiplier}px;
+}
+
+.statusdot {
+    flex-shrink: 0;
+    width: ${10 * scaleMultiplier}px;
+    height: ${10 * scaleMultiplier}px;
+    border-radius: 50%;
+    background: #cc3333;
+    opacity: 0;
+}
+
+.statusdot.recording {
+    opacity: 1;
+    -webkit-animation: recordpulse 1s ease-in-out infinite;
+    animation: recordpulse 1s ease-in-out infinite;
+}
+
+.statusdot.playing {
+    opacity: 1;
+    background: #4682b5;
+    animation: none;
+}
+
+@-webkit-keyframes recordpulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+}
+
+@keyframes recordpulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.15; }
+}
+
+.statuslabel {
+    flex: 1;
+    font-size: ${12 * scaleMultiplier}px;
+    font-weight: bold;
+    color: #555;
+    letter-spacing: ${0.5 * scaleMultiplier}px;
+}
+
+.statuslabel.recording { color: #cc3333; }
+.statuslabel.playing   { color: #4682b5; }
+
+.statustimer {
+    font-family: monospace;
+    font-size: ${13 * scaleMultiplier}px;
+    font-weight: bold;
+    color: #555;
+    white-space: nowrap;
+}
+
+.statustimer.recording { color: #cc3333; }
+.statustimer.playing   { color: #4682b5; }
+
+/* Progress bar: shows elapsed fraction of 30s recording limit */
+.progresswrap {
+    margin: 0px ${5 * scaleMultiplier}px ${8 * scaleMultiplier}px;
+    width: ${197 * scaleMultiplier}px;
+    height: ${6 * scaleMultiplier}px;
+    background: #ddd;
+    -webkit-border-radius: ${3 * scaleMultiplier}px;
+    border-radius: ${3 * scaleMultiplier}px;
+    overflow: hidden;
+    visibility: hidden;
+}
+
+.progresswrap.visible {
+    visibility: visible;
+}
+
+.progressbar {
+    height: 100%;
+    width: 0%;
+    background: #cc3333;
+    -webkit-border-radius: ${3 * scaleMultiplier}px;
+    border-radius: ${3 * scaleMultiplier}px;
+    -webkit-transition: width 0.1s linear, background 0.3s ease;
+    transition: width 0.1s linear, background 0.3s ease;
+}
+
+.progresswrap.warning .progressbar {
+    background: #ff8800;
+}
+
+/* Dim play button when no recording exists yet */
+.controlwrap.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+}

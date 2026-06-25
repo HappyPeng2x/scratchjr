@@ -18,6 +18,10 @@ let playTimeLimit = null;
 let volumeIndex = 0;
 let volumes = [];
 
+let recordStartTime = null;
+let recordDuration = 0;
+let timerInterval = null;
+
 export default class Record {
     static get available () {
         return available;
@@ -43,11 +47,32 @@ export default class Record {
         okbut.onclick = Record.saveSoundAndClose;
         var sc = newHTML('div', 'soundbox', modal);
         sc.setAttribute('id', 'soundbox');
+
+        // Status area: pulsing dot + state label + elapsed timer
+        var statusArea = newHTML('div', 'recordstatus', sc);
+        statusArea.setAttribute('id', 'recordstatus');
+        var dot = newHTML('div', 'statusdot', statusArea);
+        dot.setAttribute('id', 'statusdot');
+        var label = newHTML('div', 'statuslabel', statusArea);
+        label.setAttribute('id', 'statuslabel');
+        label.textContent = 'Ready to record';
+        var timer = newHTML('div', 'statustimer', statusArea);
+        timer.setAttribute('id', 'statustimer');
+        timer.textContent = '--:--';
+
+        // Thin progress bar showing elapsed time vs 30s limit (hidden until recording)
+        var progressWrap = newHTML('div', 'progresswrap', sc);
+        progressWrap.setAttribute('id', 'progresswrap');
+        var progressBar = newHTML('div', 'progressbar', progressWrap);
+        progressBar.setAttribute('id', 'progressbar');
+
         var sv = newHTML('div', 'soundvolume', sc);
         sv.setAttribute('id', 'soundvolume');
         for (var i = 0; i < 13; i++) {
             var si = newHTML('div', 'indicator', sv);
-            newHTML('div', 'soundlevel', si);
+            var sl = newHTML('div', 'soundlevel', si);
+            // Bars grow progressively taller left-to-right (25%–100%)
+            sl.style.height = Math.round(25 + (i / 12) * 75) + '%';
         }
         var ctrol = newHTML('div', 'soundcontrols', sc);
         ctrol.setAttribute('id', 'soundcontrols');
@@ -55,6 +80,8 @@ export default class Record {
         for (var j = 0; j < lib.length; j++) {
             Record.newToggleClicky(ctrol, 'id_', lib[j][0], lib[j][1]);
         }
+        // Play is disabled until a recording exists
+        gn('id_play').setAttribute('class', 'controlwrap disabled');
     }
 
     // Dialog box hide/show
@@ -68,6 +95,10 @@ export default class Record {
         ScratchJr.stopStrips();
         dialogOpen = true;
         ScratchJr.onBackButtonCallback.push(Record.saveSoundandClose);
+        // Reset UI to clean initial state
+        Record.setStatus('idle');
+        Record.resetVolumeBars();
+        gn('id_play').setAttribute('class', 'controlwrap disabled');
     }
 
     static disappear () {
@@ -126,6 +157,93 @@ export default class Record {
         }
     }
 
+    // Reset all volume bars to off/gray
+    static resetVolumeBars () {
+        var div = gn('soundvolume');
+        for (var i = 0; i < 13; i++) {
+            div.childNodes[i].childNodes[0].setAttribute('class', 'soundlevel off');
+        }
+    }
+
+    // Show a static representation of the recorded volume envelope
+    static showEnvelope () {
+        if (!volumes.length) {
+            return;
+        }
+        var div = gn('soundvolume');
+        for (var i = 0; i < 13; i++) {
+            var segStart = Math.floor((i / 13) * volumes.length);
+            var segEnd = Math.max(segStart + 1, Math.floor(((i + 1) / 13) * volumes.length));
+            var max = 0;
+            for (var k = segStart; k < segEnd; k++) {
+                if (volumes[k] > max) {
+                    max = volumes[k];
+                }
+            }
+            var active = Math.round(max * 13) > i;
+            div.childNodes[i].childNodes[0].setAttribute('class', active ? 'soundlevel envelope' : 'soundlevel off');
+        }
+    }
+
+    // Format milliseconds to M:SS
+    static formatTime (ms) {
+        var secs = Math.floor(ms / 1000);
+        var m = Math.floor(secs / 60);
+        var s = secs % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // Update the status area and progress bar based on current state
+    static setStatus (state) {
+        var dot = gn('statusdot');
+        var label = gn('statuslabel');
+        var timer = gn('statustimer');
+        var wrap = gn('progresswrap');
+        if (state === 'recording') {
+            dot.setAttribute('class', 'statusdot recording');
+            label.setAttribute('class', 'statuslabel recording');
+            label.textContent = 'REC';
+            timer.setAttribute('class', 'statustimer recording');
+            wrap.setAttribute('class', 'progresswrap visible');
+        } else if (state === 'playing') {
+            dot.setAttribute('class', 'statusdot playing');
+            label.setAttribute('class', 'statuslabel playing');
+            label.textContent = 'Playing';
+            timer.setAttribute('class', 'statustimer playing');
+            wrap.setAttribute('class', 'progresswrap');
+        } else {
+            dot.setAttribute('class', 'statusdot');
+            label.setAttribute('class', 'statuslabel');
+            label.textContent = recordedSound ? 'Ready' : 'Ready to record';
+            timer.setAttribute('class', 'statustimer');
+            timer.textContent = recordDuration > 0 ? Record.formatTime(recordDuration) : '--:--';
+            wrap.setAttribute('class', 'progresswrap');
+        }
+    }
+
+    // Called every 100ms to refresh the timer display and progress bar
+    static updateTimerDisplay () {
+        if (isRecording && recordStartTime) {
+            var elapsed = Date.now() - recordStartTime;
+            gn('statustimer').textContent = Record.formatTime(elapsed);
+            var pct = Math.min(elapsed / 30000 * 100, 100);
+            gn('progressbar').style.width = pct + '%';
+            if (elapsed > 25000) {
+                gn('progresswrap').setAttribute('class', 'progresswrap visible warning');
+            }
+        } else if (isPlaying) {
+            var playElapsed = volumeIndex * 33;
+            gn('statustimer').textContent = Record.formatTime(playElapsed) + ' / ' + Record.formatTime(recordDuration);
+        }
+    }
+
+    static stopTimerInterval () {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
     // On press record button
     static record (e) {
         if (error) {
@@ -162,6 +280,9 @@ export default class Record {
             error = false;
             Record.soundname = filename;
             Record.toggleButtonUI('record', true);
+            recordStartTime = Date.now();
+            Record.setStatus('recording');
+            timerInterval = setInterval(Record.updateTimerDisplay, 100);
             var poll = function () {
                 OS.volume(function (f) {
                     volumes.push(f);
@@ -199,10 +320,18 @@ export default class Record {
 
     // Start playing the sound and switch UI appropriately
     static startPlaying () {
-        OS.startplay(Record.timeOutPlay);
+        // Wrap timeOutPlay in a deferred call: OS.startplay invokes the callback
+        // synchronously before startPlaying() has set isPlaying/status, so without
+        // the defer the immediate-zero-duration timeout would revert status to idle
+        // before setStatus('playing') even runs.
+        OS.startplay(function (timeout) {
+            setTimeout(function () { Record.timeOutPlay(timeout); }, 0);
+        });
         Record.toggleButtonUI('play', true);
         isPlaying = true;
         volumeIndex = 0;
+        Record.setStatus('playing');
+        timerInterval = setInterval(Record.updateTimerDisplay, 100);
         var poll = function () {
             let f = 0;
             if (volumeIndex < volumes.length) {
@@ -214,19 +343,26 @@ export default class Record {
         interval = setInterval(poll, 33);
     }
 
-    // Gets the sound duration from iOS and changes play UI state after time
+    // Gets the sound duration from the OS and schedules the end-of-playback cleanup.
+    // On Electron the OS returns undefined (async audio), so fall back to recordDuration.
     static timeOutPlay (timeout) {
-        if (parseInt(timeout) < 0) {
-            timeout = 0.1; // Error - stop playing immediately
+        var ms = (parseFloat(timeout) > 0) ? Math.round(timeout * 1000) : recordDuration;
+        if (ms > 0) {
+            recordDuration = ms;
+        } else {
+            ms = 100; // unknown duration — stop almost immediately
         }
         playTimeLimit = setTimeout(function () {
+            Record.stopTimerInterval();
             Record.toggleButtonUI('play', false);
             isPlaying = false;
             if (interval) {
-                clearTimeout(interval);
+                clearInterval(interval);
                 interval = null;
             }
-        }, timeout * 1000);
+            Record.setStatus('idle');
+            Record.showEnvelope();
+        }, ms);
     }
 
     // Press on stop
@@ -256,10 +392,17 @@ export default class Record {
     // Stop playing the sound and switch UI appropriately
     static stopPlayingSound (fcn) {
         OS.stopplay(fcn);
+        Record.stopTimerInterval();
         Record.toggleButtonUI('play', false);
         isPlaying = false;
         window.clearTimeout(playTimeLimit);
         playTimeLimit = null;
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+        Record.setStatus('idle');
+        Record.showEnvelope();
     }
 
     // Stop the volume monitor and recording
@@ -282,7 +425,15 @@ export default class Record {
 
     static volumeCheckStopped (fcn) {
         isRecording = false;
+        recordDuration = recordStartTime ? Date.now() - recordStartTime : 0;
+        Record.stopTimerInterval();
         Record.recordUIoff();
+        gn('id_play').setAttribute('class', 'controlwrap');
+        // Set idle state BEFORE OS.recordstop so that if fcn (e.g. startPlaying)
+        // is called synchronously it can override these to 'playing' without being
+        // immediately overwritten.
+        Record.setStatus('idle');
+        Record.showEnvelope();
         OS.recordstop(fcn);
     }
 
@@ -359,6 +510,10 @@ export default class Record {
         // Refresh audio context
         isRecording = false;
         recordedSound = null;
+        recordDuration = 0;
+        recordStartTime = null;
+        volumes = [];
+        Record.stopTimerInterval();
         // Hide the dialog
         Record.disappear();
     }
