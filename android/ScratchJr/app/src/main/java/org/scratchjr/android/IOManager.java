@@ -118,6 +118,23 @@ public class IOManager {
     }
 
     /** Gets a base64-encoded view of the contents of the given file */
+    public String getAsset(String assetPath)
+        throws IOException
+    {
+        InputStream in = _application.getAssets().open(assetPath);
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            int len;
+            byte[] buffer = new byte[4096];
+            while ((len = in.read(buffer)) != -1) {
+                bos.write(buffer, 0, len);
+            }
+            return bos.toString("UTF-8");
+        } finally {
+            in.close();
+        }
+    }
+
     public String getFile(String filename)
         throws IOException
     {

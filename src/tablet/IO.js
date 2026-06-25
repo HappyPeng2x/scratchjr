@@ -36,8 +36,21 @@ export default class IO {
     }
 
     static requestFromServer (url, whenDone) {
+        // On Android, read asset files via the native bridge to bypass
+        // WebView's XHR file-access restrictions (ignored for targetSdk >= 33).
+        if (isAndroid && url.indexOf('://') === -1) {
+            var assetPath = 'HTML5/' + url.replace(/^\.\//, '');
+            setTimeout(function () {
+                var content = AndroidInterface.io_getasset(assetPath);
+                whenDone(content);
+            }, 0);
+            return;
+        }
         var xmlrequest = new XMLHttpRequest();
-        xmlrequest.addEventListener('error', transferFailed, false);
+        xmlrequest.addEventListener('error', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
         xmlrequest.onreadystatechange = function () {
             if (xmlrequest.readyState == 4) {
                 whenDone(xmlrequest.responseText);
@@ -45,11 +58,6 @@ export default class IO {
         };
         xmlrequest.open('GET', url, true);
         xmlrequest.send(null);
-        function transferFailed (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            // Failed loading
-        }
     }
 
     static getThumbnail (str, w, h, destw, desth) {

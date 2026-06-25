@@ -193,6 +193,17 @@ public class JavaScriptDirectInterface {
     }
 
     @JavascriptInterface
+    public String io_getasset(String assetPath) {
+        IOManager ioManager = _activity.getIOManager();
+        try {
+            return ioManager.getAsset(assetPath);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Could not get asset '" + assetPath + "'", e);
+            return "";
+        }
+    }
+
+    @JavascriptInterface
     public String io_getfile(String filename) {
         String result;
         IOManager ioManager = _activity.getIOManager();
